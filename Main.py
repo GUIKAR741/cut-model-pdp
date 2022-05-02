@@ -32,55 +32,69 @@ for ptk in problems:
         g.initProblem(ptk)
         g.z = len(g.edgeCuts)
         print("Initializing variables X")
-        var = [(i + ',' + str(t)) for i in g.edgeCuts for t in range(1, g.z)]
+        var = [(uv + ',' + str(i + 1)) for uv in g.edgeCuts for i in range(g.z)]
         print("Initializing variables Y")
-        var2 = [(str(i) + ',' + str(t)) for i in g.edge for t in range(1, g.z)]
+        var2 = [(uv + ',' + str(i + 1)) for uv in g.edge for i in range(g.z)]
         X = solver.LpVariable.dicts("X", var, cat=solver.LpBinary)
         Y = solver.LpVariable.dicts("Y", var2, cat=solver.LpBinary)
         problem = solver.LpProblem("The_best_Cut", solver.LpMinimize)
         print("Initializing F.O")
         problem += (
             solver.lpSum(
-                Y.get(
-                    str(i.split(',')[0]) + ',' +
-                    str(j.split(',')[0]) + ',' +
-                    str(t)
+                0
+                if str(uv.split(',')[1]) == str(wp.split(',')[0])
+                else g.mis[uv.split(',')[1]][wp.split(',')[0]] * Y.get(
+                    str(uv.split(',')[1]) + ',' +
+                    str(wp.split(',')[0]) + ',' +
+                    str(i + 1)
                 )
-                for j in (g.edge)
-                for i in (g.edge)
-                for t in (range(1, g.z))
+                for wp in (g.edge)
+                for uv in (g.edge)
+                for i in (range(g.z))
             )
         )
         print("Initializing First Restriction")
-        for i in tqdm(g.edgeCuts):
+        for uv in tqdm(g.edgeCuts):  # uv \e R
             problem += solver.lpSum(
                 X.get(
-                    str(i.split(',')[0]) + ',' + str(i.split(',')[1]) + ',' + str(t)
-                ) for t in range(1, g.z)
+                    str(uv.split(',')[0]) + ',' +
+                    str(uv.split(',')[1]) + ',' +
+                    str(i + 1)
+                ) for i in range(g.z)
             ) <= 1
         print("Initializing Second Restriction")
-        for t in tqdm(range(1, g.z)):
+        for i in tqdm(range(g.z)):  # Q : 1 .. Q
             problem += solver.lpSum(
                 X.get(
-                    str(i.split(',')[0]) + ',' + str(i.split(',')[1]) + ',' + str(t)
+                    str(uv.split(',')[0]) + ',' + 
+                    str(uv.split(',')[1]) + ',' +
+                    str(i + 1)
                 ) + X.get(
-                    str(i.split(',')[1]) + ',' + str(i.split(',')[0]) + ',' + str(t)
-                ) for i in g.edgeCuts
+                    str(uv.split(',')[1]) + ',' +
+                    str(uv.split(',')[0]) + ',' + 
+                    str(i + 1)
+                ) for uv in g.edgeCuts
             ) >= 1
-        # Restrição ainda não implementada
-        # print("Initializing Third Restriction")
-        # for i in tqdm(g.edge):
-        #     for t in range(1, (g.z) - 1):
-        #         problem += (
-        #             solver.lpSum(
-        #                 X.get(str(k) + ',' + str(i.split(',')[1]) + ',' + str(t))
-        #                 for k in g.arrive(i.split(',')[1])
-        #             ) - (solver.lpSum(
-        #                 X.get(str(i.split(',')[1]) + ',' + str(j) + ',' + str(t + (1)))
-        #                 for j in g.leave(i.split(',')[1])
-        #             )) - Y.get(str(i.split(',')[1]) + ',' + str(t))
-        #         ) == 0
-        exit(0)
+        print("Initializing Third Restriction")
+        for vw in tqdm(list(set(g.edge) - set(g.edgeCuts))):  # E - R
+            for i in range(1, g.z):
+                problem += (
+                    solver.lpSum(
+                        X.get(
+                            str(vw.split(',')[1]) + ',' + 
+                            str(v) + ',' +
+                            str(i)
+                        )
+                        for v in g.arrive(vw.split(',')[1])
+                    ) - (solver.lpSum(
+                        X.get(
+                            str(w) + ',' + 
+                            vw.split(',')[0] + ',' + 
+                            str(i + 1)
+                        )
+                        for w in g.arrive(vw.split(',')[0])
+                    ))
+                ) <= Y.get(','.join(vw.split(',')[:2]) + ',' + str(i))
         print("Initializing Solver")
         st = problem.solve(solvers[solverUsado])
         tempos = open("tempos.txt", "a+")

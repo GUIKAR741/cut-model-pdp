@@ -1,0 +1,1 @@
+PROBLEM: Instances/packing/instance_01_2pol, F.O: 351.0, TIME: 1761.9931590557098 is_Optimal: OPTIMAL Solver: GUROBI
